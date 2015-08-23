@@ -1,0 +1,64 @@
+---
+title: "Practical Machine Learning"
+author: "Gilbert Duenas"
+date: "August 21, 2015"
+output: html_document
+---
+
+## Summary
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+## Clean and load data
+We are going to use the caret package.
+```{r}
+library(caret)
+library(randomForest)
+
+readTest <- read.csv("pml-testing.csv")
+readTrain <- read.csv("pml-training.csv")
+
+```
+    
+Split part of the training set into a validation set.    
+```{r}
+set.seed(35)
+trainSet <- createDataPartition(y=readTrain$classe, p=0.65, list=F)
+
+readTrainA <- readTrain[trainSet, ]
+readTrainB <- readTrain[-trainSet, ]
+```
+
+Filter out varibales with zero variance, NA, and other unneeded variables.
+```{r}
+removeZV <- nearZeroVar(readTrainA)
+
+readTrainA <- readTrainA[, -removeZV]
+readTrainB <- readTrainB[, -removeZV]
+
+removeNA <- sapply(readTrainA, function(x) mean(is.na(x))) > 0.90
+
+readTrainA <- readTrainA[, removeNA==F]
+readTrainB <- readTrainB[, removeNA==F]
+
+readTrainA <- readTrainA[, -(1:5)]
+readTrainB <- readTrainB[, -(1:5)]
+```
+
+## Build model
+A Random Forest provides the best model.
+```{r}
+rfResult <- trainControl(method="cv", number=4, verboseIter=F)
+
+rfFinal <- train(classe ~ ., data=readTrainA, method="rf", trControl=rfResult)
+```
+
+## Make prediction
+```{r}
+modelPrediction <- predict(rfFinal, newdata=readTrainB)
+
+confusionMatrix(readTrainB$classe, modelPrediction)
+```
+
+## Out Of Sample Errors
+
+The average error is less than 1%.
